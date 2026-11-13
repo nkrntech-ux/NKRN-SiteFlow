@@ -5,7 +5,7 @@ import './style.css';
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (window.location.protocol === 'https:' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .catch(error => console.warn('SiteFlow PWA registration failed:', error));
