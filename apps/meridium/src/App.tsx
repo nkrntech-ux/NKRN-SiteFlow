@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState, type FormEvent, type ReactNode} from 'reac
 import {
   AlertTriangle, ArrowRight, ArrowUp, Bookmark, Building2, CalendarDays,
   Check, CheckCircle2, ChevronRight, ClipboardList, Clock3, Copy,
-  HardHat, HelpCircle, LayoutDashboard, MapPin, Menu, MessageSquare,
+  Download, HardHat, HelpCircle, LayoutDashboard, MapPin, Menu, MessageSquare,
   Moon, MoreHorizontal, Printer, Search, Send, Settings, Share2,
   ShieldCheck, Smartphone, Sun, Users, X
 } from 'lucide-react';
@@ -14,6 +14,7 @@ type Channel = 'SMS' | 'WhatsApp' | 'Voorman';
 type Task = {id: number; title: string; titleKey?: string; project: string; team: string; time: string; status: Status; channel: Channel};
 type Draft = {title: string; project: string; team: string; time: string; channel: Channel};
 type Legal = 'privacy' | 'terms' | 'popia';
+type InstallPromptEvent = Event & {prompt: () => Promise<void>; userChoice: Promise<{outcome: string}>};
 
 const INITIAL_TASKS: Task[] = [
   {id:101,title:'Voltooi kombuis se teëlwerk',titleKey:'sampleTask1',project:'Boschkop Residence',team:'Pieter se span',time:'07:00',status:'inProgress',channel:'SMS'},
@@ -74,12 +75,33 @@ export default function App(){
   const [legal,setLegal]=useState<Legal|null>(null);
   const [toast,setToast]=useState('');
   const [scrollProgress,setScrollProgress]=useState(0);
+  const [isOnline,setIsOnline]=useState(()=>navigator.onLine);
+  const [pwaReady,setPwaReady]=useState(false);
+  const [installPrompt,setInstallPrompt]=useState<InstallPromptEvent|null>(null);
+  const [installed,setInstalled]=useState(()=>window.matchMedia('(display-mode: standalone)').matches);
   const t=(key:string)=>translate(language,key);
   const displayTask=(task:Task)=>task.titleKey?t(task.titleKey):task.title;
   const displayTeam=(team:string)=>language==='en'?team.replace(' se span',' team'):team;
   const channelLabel=(channel:Channel)=>channel==='Voorman'?t('supervisorRole'):channel;
   const activeTitle=t(PAGES.find(n=>n.id===page)?.key??'overview');
 
+  useEffect(()=>{
+    const goOnline=()=>setIsOnline(true);
+    const goOffline=()=>setIsOnline(false);
+    const onPrompt=(event:Event)=>{event.preventDefault();setInstallPrompt(event as InstallPromptEvent);};
+    const onInstalled=()=>{setInstalled(true);setInstallPrompt(null);};
+    window.addEventListener('online',goOnline);
+    window.addEventListener('offline',goOffline);
+    window.addEventListener('beforeinstallprompt',onPrompt);
+    window.addEventListener('appinstalled',onInstalled);
+    if('serviceWorker' in navigator){void navigator.serviceWorker.ready.then(()=>setPwaReady(true)).catch(()=>{});}
+    return()=>{
+      window.removeEventListener('online',goOnline);
+      window.removeEventListener('offline',goOffline);
+      window.removeEventListener('beforeinstallprompt',onPrompt);
+      window.removeEventListener('appinstalled',onInstalled);
+    };
+  },[]);
   useEffect(()=>{document.documentElement.lang=language;document.title=`${activeTitle} | SiteFlow — Meridium Construction`;localStorage.setItem('sf-language',language);},[language,activeTitle]);
   useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('sf-dark',String(dark));},[dark]);
   useEffect(()=>{document.documentElement.style.fontSize=fontScale+'%';localStorage.setItem('sf-font',String(fontScale));},[fontScale]);
@@ -125,6 +147,12 @@ export default function App(){
     const details={title:'SiteFlow — Meridium',url:location.href};
     try{if(navigator.share){await navigator.share(details);}else{await navigator.clipboard.writeText(details.url);setToast(t('shared'));}}catch(error){if(!(error instanceof DOMException && error.name==='AbortError'))setToast(t('shareFailed'));}
   }
+  async function installApp(){
+    if(!installPrompt)return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  }
   function simulate(){setToast(t('simulateNotice'));}
   const filtered=useMemo(()=>tasks.filter(task=>{
     const title=task.titleKey?translate(language,task.titleKey):task.title;
@@ -147,7 +175,7 @@ export default function App(){
       <div className="org"><div className="org-logo-frame"><img src="/meridium-mark.png" alt="Meridium Construction"/></div><div><strong>Meridium Construction</strong><small>{t('demoWorkspace')}</small></div></div>
       <div className="nav-label">{t('workspace')}</div>
       <nav className="side-nav">{PAGES.map(item=><button key={item.id} className={page===item.id?'active':''} onClick={()=>goTo(item.id)} aria-current={page===item.id?'page':undefined}><item.icon size={19}/><span>{t(item.key)}</span></button>)}</nav>
-      <div className="sidebar-foot"><span className="online-mark"/> {t('demo')} <small>{t('localData')}</small></div>
+      <div className="sidebar-foot"><span className={`online-mark ${!isOnline?'is-offline':''}`}/> {t(isOnline?'onlineNow':'offlineNow')} <small>{t('localData')}</small></div>
     </aside>
     <main id="main-content">
       <header className="topbar">
@@ -175,7 +203,7 @@ export default function App(){
         {page==='projects'&&<><PageIntro title={t('projectList')} subtitle={t('projectDescription')}/><div className="project-grid">{PROJECTS.map(project=><article className="panel project-card" key={project.name}><div className="project-icon"><Building2/></div><h3>{project.name}</h3><p>{t(project.type)}</p><div className="muted-line"><MapPin size={16}/>{project.location}</div><div className="muted-line"><Users size={16}/>{project.team} {t('workers')}</div><ProjectProgress project={project}/></article>)}</div></>}
         {page==='people'&&<><PageIntro title={t('peopleList')} subtitle={t('peopleDescription')}/><section className="panel"><div className="workforce-list">{PEOPLE.map(person=><article className="person-card" key={person.name}><div className="person-avatar">{person.name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div className="person-info"><strong>{person.name}</strong><small>{t(person.role)} · {displayTeam(person.team)}</small></div><span className="channel-chip">{channelLabel(person.channel)}</span></article>)}</div></section></>}
         {page==='messages'&&<><PageIntro title={t('messageCenter')} subtitle={t('messagesDescription')}/><div className="two-cols"><section className="panel"><SectionHeading title={t('smsPreview')}/><div className="sms-preview"><strong>{t('smsHeader')}</strong><div>{t('smsProject')}: {PROJECTS[0].name}</div><div>{t('smsStart')}: 07:00</div><div>{t('smsTask')}: {t('sampleTask1')}</div><div>{t('smsTeam')}: {displayTeam(PEOPLE[0].team)}</div><div>{t('smsHelp')}</div></div><button className="primary" onClick={simulate}><Send size={17}/>{t('simulateSms')}</button></section><section className="panel"><SectionHeading title={t('deliveryProcess')}/><ol className="process-list">{['planStep1','planStep2','planStep3','planStep4'].map((key,i)=><li key={key}><span>{i+1}</span>{t(key)}</li>)}</ol><p className="muted">{t('noSms')}</p></section></div></>}
-        {page==='settings'&&<div className="settings-stack"><section className="panel"><SectionHeading title={t('preferences')}/><div className="settings-row"><label htmlFor="text-range">{t('textSize')}</label><div><input id="text-range" type="range" min="90" max="120" step="5" value={fontScale} onChange={e=>setFontScale(Number(e.target.value))}/><output htmlFor="text-range">{fontScale}%</output></div></div><div className="settings-row"><label>{t('changeLanguage')}</label><div className="language-choices"><button className={language==='af'?'selected':''} onClick={()=>setLanguage('af')} aria-pressed={language==='af'}>Afrikaans</button><button className={language==='en'?'selected':''} onClick={()=>setLanguage('en')} aria-pressed={language==='en'}>English</button></div></div><div className="settings-row"><label>{t('shareDemo')}</label><button className="outline" onClick={share}><Share2 size={16}/>{t('shareDemo')}</button></div></section><section className="panel"><SectionHeading title={t('help')}/><div className="toolbar"><Search size={18}/><input value={faqSearch} onChange={e=>setFaqSearch(e.target.value)} placeholder={t('searchFaq')} aria-label={t('searchFaq')}/></div>{faq.map(item=><details key={item.question}><summary>{item.question}<ChevronRight size={16}/></summary><p>{item.answer}</p></details>)}</section><section className="panel"><SectionHeading title={t('offline')}/><p className="muted">{t('offlineNotice')}</p><p className="muted">{t('storageNotice')}</p><button className="outline" onClick={()=>{setTasks(INITIAL_TASKS);setSaved([]);setDraft(blankDraft());setToast(t('restored'));}}>{t('resetData')}</button></section></div>}
+        {page==='settings'&&<div className="settings-stack"><section className="panel"><SectionHeading title={t('preferences')}/><div className="settings-row"><label htmlFor="text-range">{t('textSize')}</label><div><input id="text-range" type="range" min="90" max="120" step="5" value={fontScale} onChange={e=>setFontScale(Number(e.target.value))}/><output htmlFor="text-range">{fontScale}%</output></div></div><div className="settings-row"><label>{t('changeLanguage')}</label><div className="language-choices"><button className={language==='af'?'selected':''} onClick={()=>setLanguage('af')} aria-pressed={language==='af'}>Afrikaans</button><button className={language==='en'?'selected':''} onClick={()=>setLanguage('en')} aria-pressed={language==='en'}>English</button></div></div><div className="settings-row"><label>{t('shareDemo')}</label><button className="outline" onClick={share}><Share2 size={16}/>{t('shareDemo')}</button></div></section><section className="panel"><SectionHeading title={t('help')}/><div className="toolbar"><Search size={18}/><input value={faqSearch} onChange={e=>setFaqSearch(e.target.value)} placeholder={t('searchFaq')} aria-label={t('searchFaq')}/></div>{faq.map(item=><details key={item.question}><summary>{item.question}<ChevronRight size={16}/></summary><p>{item.answer}</p></details>)}</section><section className="panel"><SectionHeading title={t('offline')}/><p className="muted">{t('offlineNotice')}</p><div className="pwa-state"><span className={`online-mark ${!isOnline?'is-offline':''}`}/><strong>{t(isOnline?'onlineNow':'offlineNow')}</strong></div><p className="muted">{t(pwaReady?'pwaCached':'pwaPreparing')}</p>{installPrompt&&!installed&&<button className="primary" type="button" onClick={()=>{void installApp();}}><Download size={17}/>{t('installApp')}</button>}{installed&&<p className="muted">{t('alreadyInstalled')}</p>}<p className="muted">{t('installGuide')}</p><p className="muted">{t('pwaProtection')}</p><p className="muted">{t('storageNotice')}</p><button className="outline" onClick={()=>{setTasks(INITIAL_TASKS);setSaved([]);setDraft(blankDraft());setToast(t('restored'));}}>{t('resetData')}</button></section></div>}
       </div>
       <footer className="legal-footer"><div className="legal-brand"><img src="/nkrn-technologies-on-light.png" alt="NKRN Technologies"/><span>SiteFlow · {t('demo')}</span></div><div className="legal-links"><button onClick={()=>setLegal('privacy')}>{t('privacy')}</button><button onClick={()=>setLegal('terms')}>{t('terms')}</button><button onClick={()=>setLegal('popia')}>{t('popia')}</button></div></footer>
     </main>

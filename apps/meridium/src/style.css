@@ -268,3 +268,8 @@ kbd{border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:.
 @media(max-width:360px){.lang-switch select{min-height:40px;padding:7px 24px 7px 7px}.topbar h1{font-size:1.03rem}.header-actions{gap:1px}.metrics .metric-top>span{font-size:.66rem}.client-logo{width:72px;flex-basis:72px}}
 @media print{.sidebar,.topbar,.bottom-nav,.back-to-top,.legal-footer,.client-strip,.filters,.panel-actions,.notice,.toast,.recent{display:none!important}.content{padding:0!important}.panel{box-shadow:none;border:0}.planning-layout{display:block}.planning-layout>.panel:nth-child(2){display:none}.table-scroll{display:block!important}.mobile-task-list{display:none!important}table{min-width:0}body{background:white;color:black}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+/* PWA installability and offline feedback */
+.pwa-state{display:flex;align-items:center;gap:10px;padding:12px 0}
+.pwa-state .online-mark,.sidebar-foot .online-mark{flex:none}
+.online-mark.is-offline{background:#e38155;box-shadow:0 0 0 4px rgba(227,129,85,.13)}
+@media(display-mode:standalone){.app{padding-top:env(safe-area-inset-top)}.bottom-nav{padding-bottom:max(10px,env(safe-area-inset-bottom))}}

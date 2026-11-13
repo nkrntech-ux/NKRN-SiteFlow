@@ -1,10 +1,18 @@
 {
+  "id": "/",
   "name": "SiteFlow — Meridium Construction Demo",
   "short_name": "SiteFlow",
+  "description": "Meridium Construction: demonstrasie van projek- en personeelbestuur.",
+  "lang": "af",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#F8F8FF",
   "theme_color": "#092742",
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
