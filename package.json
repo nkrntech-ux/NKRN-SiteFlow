@@ -1,0 +1,14 @@
+{
+  "name": "siteflow",
+  "private": true,
+  "version": "0.5.1",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:portfolio": "npm --workspace apps/portfolio run dev",
+    "dev:meridium": "npm --workspace apps/meridium run dev",
+    "build:portfolio": "npm --workspace apps/portfolio run build",
+    "build:meridium": "npm --workspace apps/meridium run build"
+  }
+}
